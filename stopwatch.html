@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roselina Stopwatch</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@200;300;400&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0510;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    /* ── 배경: 별빛 ── */
+    #stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── 배경: 그라디언트 오로라 ── */
+    .aurora {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 80%, rgba(120,20,60,0.45) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 20%, rgba(60,10,90,0.5) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 70% at 50% 50%, rgba(80,5,40,0.3) 0%, transparent 70%);
+    }
+
+    /* ── 꽃잎 캔버스 ── */
+    #petals {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── 메인 컨테이너 ── */
+    .container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* ── 타이틀 ── */
+    .title {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 18px;
+      letter-spacing: 8px;
+      color: rgba(255,180,180,0.55);
+      margin-bottom: 36px;
+      text-transform: uppercase;
+    }
+
+    /* ── 시계 글로우 링 ── */
+    .clock-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 52px;
+    }
+
+    .ring {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      border: 1px solid rgba(200,80,100,0.18);
+      box-shadow:
+        0 0 40px rgba(180,40,80,0.12),
+        inset 0 0 60px rgba(120,10,40,0.1);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: ringPulse 4s ease-in-out infinite;
+    }
+
+    .ring2 {
+      width: 380px;
+      height: 380px;
+      border-color: rgba(160,40,100,0.08);
+      animation-delay: -2s;
+    }
+
+    @keyframes ringPulse {
+      0%, 100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); }
+      50% { opacity: 1; transform: translate(-50%,-50%) scale(1.015); }
+    }
+
+    /* ── 시간 표시 ── */
+    .display {
+      text-align: center;
+      padding: 60px 0 20px;
+    }
+
+    .time-main {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 96px;
+      letter-spacing: 6px;
+      line-height: 1;
+      background: linear-gradient(160deg, #ffd6e0 0%, #ffb3c6 40%, #c9184a 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 18px rgba(220,80,110,0.5));
+    }
+
+    .time-ms {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 200;
+      font-size: 32px;
+      letter-spacing: 3px;
+      color: rgba(255,160,180,0.45);
+      margin-top: 4px;
+    }
+
+    /* ── 버튼 ── */
+    .buttons {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 44px;
+    }
+
+    .btn {
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 300;
+      letter-spacing: 1.5px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .btn:active { transform: scale(0.91); }
+
+    .btn-main {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #c9184a 0%, #ff4d6d 60%, #ff85a1 100%);
+      color: #fff;
+      box-shadow:
+        0 0 30px rgba(200,24,74,0.55),
+        0 4px 20px rgba(200,24,74,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+      font-size: 12px;
+    }
+
+    .btn-main.running {
+      background: linear-gradient(135deg, #590d22 0%, #800f2f 60%, #a4133c 100%);
+      box-shadow:
+        0 0 30px rgba(100,10,40,0.6),
+        0 4px 20px rgba(100,10,40,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .btn-sub {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,180,190,0.7);
+      border: 1px solid rgba(200,80,100,0.25);
+      box-shadow: 0 0 16px rgba(180,40,80,0.15);
+      backdrop-filter: blur(6px);
+    }
+
+    .btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .btn-sub:not(:disabled):hover {
+      background: rgba(200,80,100,0.12);
+      border-color: rgba(200,80,100,0.45);
+    }
+
+    /* ── 랩 목록 ── */
+    .laps-wrap {
+      width: 320px;
+      max-height: 230px;
+      overflow-y: auto;
+    }
+
+    .laps-wrap::-webkit-scrollbar { width: 2px; }
+    .laps-wrap::-webkit-scrollbar-thumb { background: rgba(200,80,100,0.3); border-radius: 2px; }
+
+    .lap-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 4px;
+      border-bottom: 1px solid rgba(200,80,100,0.1);
+      font-size: 13px;
+      font-weight: 300;
+      color: rgba(255,200,210,0.6);
+      letter-spacing: 1px;
+    }
+
+    .lap-item:first-child { border-top: 1px solid rgba(200,80,100,0.1); }
+    .lap-num { color: rgba(200,80,100,0.45); font-size: 11px; letter-spacing: 2px; }
+    .lap-item.fastest { color: #ff85a1; }
+    .lap-item.slowest { color: rgba(160,100,110,0.6); }
+
+    /* ── 하단 장식 ── */
+    .deco {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 11px;
+      color: rgba(200,80,100,0.2);
+      letter-spacing: 4px;
+      margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="aurora"></div>
+<canvas id="petals"></canvas>
+
+<div class="container">
+  <div class="title">Roselina</div>
+
+  <div class="clock-wrap">
+    <div class="ring"></div>
+    <div class="ring ring2"></div>
+    <div class="display">
+      <div class="time-main"><span id="time">00:00</span></div>
+      <div class="time-ms">.<span id="ms">00</span></div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn btn-sub" id="btn-lap" disabled>랩</button>
+    <button class="btn btn-main" id="btn-start">시작</button>
+    <button class="btn btn-sub" id="btn-reset" disabled>초기화</button>
+  </div>
+
+  <div class="laps-wrap">
+    <div id="laps"></div>
+  </div>
+
+  <div class="deco">rose &amp; starlight</div>
+</div>
+
+<script>
+/* ── 별 그리기 ── */
+(function() {
+  const c = document.getElementById('stars');
+  const ctx = c.getContext('2d');
+  let stars = [];
+
+  function resize() {
+    c.width = innerWidth;
+    c.height = innerHeight;
+    stars = Array.from({ length: 180 }, () => ({
+      x: Math.random() * c.width,
+      y: Math.random() * c.height,
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random(),
+      speed: Math.random() * 0.008 + 0.003,
+      phase: Math.random() * Math.PI * 2
+    }));
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    stars.forEach(s => {
+      const alpha = s.a * (0.4 + 0.6 * Math.abs(Math.sin(t * s.speed + s.phase)));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,210,220,${alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ── 꽃잎 그리기 ── */
+(function() {
+  const c = document.getElementById('petals');
+  const ctx = c.getContext('2d');
+  let petals = [];
+
+  function resize() {
+    c.width = innerWidth;
+    c.height = innerHeight;
+  }
+
+  function makePetal() {
+    return {
+      x: Math.random() * innerWidth,
+      y: -30,
+      size: Math.random() * 10 + 6,
+      speedY: Math.random() * 0.6 + 0.3,
+      speedX: (Math.random() - 0.5) * 0.5,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.025,
+      alpha: Math.random() * 0.5 + 0.15,
+      sway: Math.random() * 0.4,
+      swayPhase: Math.random() * Math.PI * 2,
+      color: `hsl(${330 + Math.random() * 30}, 80%, ${60 + Math.random() * 20}%)`
+    };
+  }
+
+  for (let i = 0; i < 22; i++) {
+    const p = makePetal();
+    p.y = Math.random() * innerHeight;
+    petals.push(p);
+  }
+
+  function drawPetal(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = p.alpha;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.size * 0.45, p.size, 0, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  let t = 0;
+  function draw() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    t += 0.016;
+
+    if (Math.random() < 0.018) petals.push(makePetal());
+
+    petals = petals.filter(p => p.y < innerHeight + 40);
+
+    petals.forEach(p => {
+      p.y += p.speedY;
+      p.x += p.speedX + Math.sin(t * p.sway + p.swayPhase) * 0.4;
+      p.rot += p.rotSpeed;
+      drawPetal(p);
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ── 스탑워치 로직 ── */
+let startTime = 0, elapsed = 0, timerInterval = null;
+let running = false, lapStart = 0, laps = [];
+
+const timeEl = document.getElementById('time');
+const msEl   = document.getElementById('ms');
+const btnStart = document.getElementById('btn-start');
+const btnLap   = document.getElementById('btn-lap');
+const btnReset = document.getElementById('btn-reset');
+const lapsEl   = document.getElementById('laps');
+
+function format(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const min  = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const sec  = (totalSec % 60).toString().padStart(2, '0');
+  const cent = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+  return { min, sec, cent };
+}
+
+function updateDisplay(ms) {
+  const { min, sec, cent } = format(ms);
+  timeEl.textContent = `${min}:${sec}`;
+  msEl.textContent = cent;
+}
+
+function renderLaps() {
+  if (!laps.length) { lapsEl.innerHTML = ''; return; }
+  const times = laps.map(l => l.time);
+  const minT = Math.min(...times), maxT = Math.max(...times);
+  lapsEl.innerHTML = laps.slice().reverse().map(lap => {
+    const cls = laps.length > 1 ? (lap.time === minT ? 'fastest' : lap.time === maxT ? 'slowest' : '') : '';
+    const { min: m, sec: s, cent: ce } = format(lap.time);
+    return `<div class="lap-item ${cls}">
+      <span class="lap-num">LAP ${String(lap.num).padStart(2,'0')}</span>
+      <span>${m}:${s}.${ce}</span>
+    </div>`;
+  }).join('');
+}
+
+btnStart.addEventListener('click', () => {
+  if (!running) {
+    startTime = Date.now() - elapsed;
+    if (lapStart === 0) lapStart = Date.now();
+    timerInterval = setInterval(() => {
+      elapsed = Date.now() - startTime;
+      updateDisplay(elapsed);
+    }, 10);
+    running = true;
+    btnStart.textContent = '중지';
+    btnStart.classList.add('running');
+    btnLap.disabled = false;
+    btnReset.disabled = true;
+  } else {
+    clearInterval(timerInterval);
+    running = false;
+    btnStart.textContent = '계속';
+    btnStart.classList.remove('running');
+    btnLap.disabled = true;
+    btnReset.disabled = false;
+  }
+});
+
+btnLap.addEventListener('click', () => {
+  const now = Date.now();
+  laps.push({ num: laps.length + 1, time: now - lapStart });
+  lapStart = now;
+  renderLaps();
+});
+
+btnReset.addEventListener('click', () => {
+  elapsed = 0; lapStart = 0; laps = [];
+  updateDisplay(0);
+  renderLaps();
+  btnStart.textContent = '시작';
+  btnStart.classList.remove('running');
+  btnLap.disabled = true;
+  btnReset.disabled = true;
+});
+</script>
+</body>
+</html>
