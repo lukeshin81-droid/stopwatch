@@ -13,14 +13,14 @@ canvas{position:fixed;inset:0;pointer-events:none}
 .title{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:16px;letter-spacing:10px;color:rgba(160,255,180,0.45);margin-bottom:30px;text-transform:uppercase}
 .clock-ring{position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;margin-bottom:40px}
 .display{text-align:center;z-index:2}
-.time-main{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:88px;letter-spacing:4px;line-height:1;background:linear-gradient(160deg,#d4ffeb 0%,#a0ffcc 40%,#ff9ec4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 20px rgba(100,255,180,0.6))}
+.time-main{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:88px;letter-spacing:4px;line-height:1;background:linear-gradient(160deg,#d4ffeb 0%,#a0ffcc 40%,#ff9ec4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(100,255,180,0.5))}
 .time-ms{font-family:'Montserrat',sans-serif;font-weight:200;font-size:28px;letter-spacing:3px;color:rgba(160,255,200,0.4);margin-top:2px}
 .buttons{display:flex;align-items:center;gap:24px;margin-bottom:36px}
-.btn{border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:300;letter-spacing:2px;font-size:10px;text-transform:uppercase;transition:transform .15s,box-shadow .2s}
+.btn{border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:300;letter-spacing:2px;font-size:10px;text-transform:uppercase;transition:transform .15s}
 .btn:active{transform:scale(0.9)}
-.btn-main{width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#00704a,#00c47a,#00ff99);color:#001a0d;box-shadow:0 0 40px rgba(0,200,120,0.7),0 0 80px rgba(0,200,120,0.3),inset 0 1px 0 rgba(255,255,255,0.3);font-size:12px}
-.btn-main.running{background:linear-gradient(135deg,#7a0040,#c9184a,#ff4d6d);color:#fff;box-shadow:0 0 40px rgba(200,30,80,0.7),0 0 80px rgba(200,30,80,0.3)}
-.btn-sub{width:62px;height:62px;border-radius:50%;background:rgba(0,255,150,0.06);color:rgba(160,255,200,0.7);border:1px solid rgba(0,255,150,0.2);box-shadow:0 0 20px rgba(0,200,120,0.15);backdrop-filter:blur(8px)}
+.btn-main{width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#00704a,#00c47a,#00ff99);color:#001a0d;box-shadow:0 0 32px rgba(0,200,120,0.6),inset 0 1px 0 rgba(255,255,255,0.3);font-size:12px}
+.btn-main.running{background:linear-gradient(135deg,#7a0040,#c9184a,#ff4d6d);color:#fff;box-shadow:0 0 32px rgba(200,30,80,0.6)}
+.btn-sub{width:62px;height:62px;border-radius:50%;background:rgba(0,255,150,0.06);color:rgba(160,255,200,0.7);border:1px solid rgba(0,255,150,0.2);backdrop-filter:blur(8px)}
 .btn:disabled{opacity:.2;cursor:default;box-shadow:none}
 .laps-wrap{width:300px;max-height:200px;overflow-y:auto}
 .laps-wrap::-webkit-scrollbar{width:2px}
@@ -34,9 +34,7 @@ canvas{position:fixed;inset:0;pointer-events:none}
 </style>
 </head>
 <body>
-
 <canvas id="c"></canvas>
-
 <div id="ui">
   <div class="title">Roselina</div>
   <div class="clock-ring">
@@ -56,268 +54,204 @@ canvas{position:fixed;inset:0;pointer-events:none}
 
 <script>
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+const ctx    = canvas.getContext('2d', { alpha: false });
 let W, H, cx, cy;
 
 function resize(){
-  W = canvas.width = window.innerWidth;
+  W = canvas.width  = window.innerWidth;
   H = canvas.height = window.innerHeight;
   cx = W/2; cy = H/2;
-}
-resize();
-window.addEventListener('resize', resize);
-
-/* ══════════════════════════════════════
-   1. 별
-══════════════════════════════════════ */
-const STARS = Array.from({length:200}, ()=>({
-  x: Math.random(), y: Math.random(),
-  r: Math.random()*1.1+0.2,
-  a: Math.random()*0.7+0.1,
-  sp: Math.random()*.006+.002,
-  ph: Math.random()*Math.PI*2
-}));
-
-function drawStars(t){
-  STARS.forEach(s=>{
-    const a = s.a*(0.3+0.7*Math.abs(Math.sin(t*s.sp+s.ph)));
-    ctx.beginPath();
-    ctx.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
-    ctx.fillStyle=`rgba(200,255,230,${a})`;
-    ctx.fill();
-  });
+  buildStarCache();
+  buildRingCache();
 }
 
-/* ══════════════════════════════════════
-   2. 오로라 (북극광)
-   여러 겹의 물결치는 띠 → 하늘 전체
-══════════════════════════════════════ */
-const AURORA_BANDS = [
-  // { baseY(0~1), hue, amp, freq, speed, alpha }
-  { baseY:.18, h1:'0,255,120', h2:'0,180,255', amp:90,  freq:.0018, sp:.00025, a:.18 },
-  { baseY:.28, h1:'80,255,160',h2:'0,120,255', amp:70,  freq:.0022, sp:.00018, a:.22 },
-  { baseY:.38, h1:'160,255,80',h2:'80,200,255',amp:55,  freq:.0026, sp:.00030, a:.16 },
-  { baseY:.12, h1:'0,200,255', h2:'100,80,255',amp:100, freq:.0015, sp:.00020, a:.14 },
-  { baseY:.45, h1:'200,80,255',h2:'0,255,180', amp:45,  freq:.0030, sp:.00035, a:.12 },
+/* ── 별: 오프스크린 캐시 ── */
+let starCache;
+function buildStarCache(){
+  starCache = new OffscreenCanvas(W, H);
+  const sc = starCache.getContext('2d');
+  for(let i=0;i<160;i++){
+    const x=Math.random()*W, y=Math.random()*H;
+    const r=Math.random()*1.1+0.2;
+    const a=Math.random()*0.6+0.1;
+    sc.beginPath();
+    sc.arc(x,y,r,0,Math.PI*2);
+    sc.fillStyle=`rgba(200,255,225,${a})`;
+    sc.fill();
+  }
+}
+
+/* ── 오로라 링: 오프스크린 캐시 (색상만 rotate) ── */
+let ringCache = [];
+const RING_DEFS = [
+  {r:148, w:14, a:.85},
+  {r:168, w: 8, a:.60},
+  {r:186, w: 5, a:.40},
+  {r:202, w: 3, a:.25},
 ];
-
-function drawAurora(t){
-  AURORA_BANDS.forEach(b=>{
-    const yBase = b.baseY * H;
-    const thickness = H * 0.22;
-
-    // 위 경계선 (물결)
-    const points = [];
-    for(let x=0; x<=W; x+=4){
-      const wave =
-        Math.sin(x*b.freq + t*b.sp*Math.PI*2*60)*b.amp +
-        Math.sin(x*b.freq*1.7 + t*b.sp*Math.PI*2*60*0.6)*b.amp*0.4 +
-        Math.sin(x*b.freq*0.5 + t*b.sp*Math.PI*2*60*1.3)*b.amp*0.25;
-      points.push({x, y: yBase + wave});
-    }
-
-    // 그라디언트 (위→아래 페이드)
-    const grad = ctx.createLinearGradient(0, yBase-b.amp, 0, yBase+thickness+b.amp);
-    grad.addColorStop(0,   `rgba(${b.h1},0)`);
-    grad.addColorStop(0.15,`rgba(${b.h1},${b.a})`);
-    grad.addColorStop(0.4, `rgba(${b.h2},${b.a*0.85})`);
-    grad.addColorStop(0.7, `rgba(${b.h1},${b.a*0.4})`);
-    grad.addColorStop(1,   `rgba(${b.h2},0)`);
-
-    ctx.save();
-    ctx.globalCompositeOperation='screen';
-    ctx.fillStyle=grad;
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for(let i=1;i<points.length;i++){
-      const pm=points[i-1], p=points[i];
-      ctx.quadraticCurveTo(pm.x,pm.y,(pm.x+p.x)/2,(pm.y+p.y)/2);
-    }
-    ctx.lineTo(W, yBase+thickness);
-    ctx.lineTo(0, yBase+thickness);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  });
-}
-
-/* ══════════════════════════════════════
-   3. 오로라 링 (시계 주변 링)
-══════════════════════════════════════ */
-function drawAuroraRings(t){
-  const rings = [
-    { r:152, w:18, a:.9, sp:.00040 },
-    { r:175, w:10, a:.65, sp:.00028 },
-    { r:196, w:6,  a:.45, sp:.00050 },
-    { r:215, w:4,  a:.3,  sp:.00035 },
-  ];
-
-  rings.forEach((ring, ri)=>{
-    const segments = 360;
-    const da = (Math.PI*2)/segments;
-
-    for(let i=0;i<segments;i++){
+function buildRingCache(){
+  ringCache = RING_DEFS.map(def=>{
+    const size = (def.r + def.w + 4)*2;
+    const oc = new OffscreenCanvas(size, size);
+    const oc2 = oc.getContext('2d');
+    const ccx = size/2, ccy = size/2;
+    const SEG = 90; // 세그먼트 수 줄임 (360→90)
+    const da  = (Math.PI*2)/SEG;
+    for(let i=0;i<SEG;i++){
       const angle = i*da;
-      // 색상 흐름: 초록→파랑→보라→핑크 순환
-      const hue = ((angle/(Math.PI*2)*360) + t*ring.sp*360*60 + ri*90) % 360;
-      const lightness = 55+20*Math.sin(angle*3+t*ring.sp*Math.PI*2*60);
-      const alpha = ring.a*(0.6+0.4*Math.sin(angle*5+t*ring.sp*Math.PI*2*60*1.3+ri));
-
-      ctx.save();
-      ctx.globalCompositeOperation='screen';
-      ctx.strokeStyle=`hsla(${hue},100%,${lightness}%,${alpha})`;
-      ctx.lineWidth=ring.w*(0.5+0.5*Math.abs(Math.sin(angle*2+t*0.001)));
-      ctx.lineCap='round';
-      ctx.shadowColor=`hsla(${hue},100%,70%,0.8)`;
-      ctx.shadowBlur=ring.w*2.5;
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, ring.r, angle, angle+da*1.5);
-      ctx.stroke();
-      ctx.restore();
+      const hue   = (i/SEG)*360;
+      oc2.beginPath();
+      oc2.arc(ccx, ccy, def.r, angle, angle+da*1.2);
+      oc2.strokeStyle=`hsla(${hue},100%,65%,${def.a})`;
+      oc2.lineWidth=def.w;
+      oc2.lineCap='butt';
+      oc2.stroke();
     }
+    return {canvas: oc, size, r: def.r};
   });
-
-  // 안쪽 글로우
-  for(let i=0;i<3;i++){
-    const grad = ctx.createRadialGradient(cx,cy,120,cx,cy,160+i*20);
-    const hue=(t*.00025*360*60+i*120)%360;
-    grad.addColorStop(0,`hsla(${hue},100%,70%,0)`);
-    grad.addColorStop(0.5,`hsla(${hue},100%,60%,0.12)`);
-    grad.addColorStop(1,`hsla(${hue},100%,50%,0)`);
-    ctx.save();
-    ctx.globalCompositeOperation='screen';
-    ctx.fillStyle=grad;
-    ctx.beginPath();
-    ctx.arc(cx,cy,160+i*20,0,Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-  }
 }
 
-/* ══════════════════════════════════════
-   4. 장미꽃잎 (canvas로 실제 꽃잎 모양)
-══════════════════════════════════════ */
-class Petal {
-  constructor(fromCenter){
-    this.reset(fromCenter);
-  }
-  reset(fromCenter){
-    if(fromCenter){
-      // 화면 전체에 랜덤 분포 (초기화)
-      this.x = Math.random()*W;
-      this.y = Math.random()*H;
-    } else {
-      // 위에서 떨어짐
-      this.x = Math.random()*W*1.2 - W*0.1;
-      this.y = -40;
-    }
-    this.size   = Math.random()*14+8;
-    this.rot    = Math.random()*Math.PI*2;
-    this.rotV   = (Math.random()-.5)*.03;
-    this.vx     = (Math.random()-.5)*0.8;
-    this.vy     = Math.random()*0.9+0.3;
-    this.sway   = Math.random()*0.6+0.2;
-    this.swayPh = Math.random()*Math.PI*2;
-    this.curl   = Math.random()*0.6+0.2; // 꽃잎 말림 정도
-    // 장미 색: 딥레드~핑크~연핑크
-    const palette=[
-      [180,20,40],[200,30,60],[220,50,80],
-      [240,80,100],[255,120,140],[255,160,180],
-      [200,10,50],[160,5,30]
-    ];
-    const c=palette[Math.floor(Math.random()*palette.length)];
-    this.r=c[0];this.g=c[1];this.b=c[2];
-    this.alpha=Math.random()*0.55+0.3;
-  }
+/* ── 오로라 배경: 사전 계산된 웨이브를 낮은 빈도로만 업데이트 ── */
+let auroraCache = null;
+let lastAuroraT = -999;
+const AURORA_UPDATE_INTERVAL = 4; // N프레임마다 1회 갱신
 
+function buildAuroraFrame(t){
+  const oc = new OffscreenCanvas(W, H);
+  const oc2 = oc.getContext('2d');
+  const bands = [
+    {baseY:.16, r:'0,220,110',  g:'0,150,255', amp:80,  freq:.0016, ph:0     },
+    {baseY:.27, r:'60,255,140', g:'0,100,220', amp:60,  freq:.0021, ph:1.2   },
+    {baseY:.38, r:'140,255,80', g:'60,180,255',amp:45,  freq:.0025, ph:2.4   },
+    {baseY:.10, r:'0,180,255',  g:'120,60,255',amp:90,  freq:.0013, ph:0.6   },
+  ];
+  bands.forEach(b=>{
+    const yBase = b.baseY*H;
+    const thick = H*0.20;
+    const pts=[];
+    for(let x=0;x<=W;x+=8){
+      const w =
+        Math.sin(x*b.freq + t*.0004 + b.ph)*b.amp +
+        Math.sin(x*b.freq*1.8 + t*.00025)*b.amp*.35;
+      pts.push({x, y:yBase+w});
+    }
+    const gr=oc2.createLinearGradient(0,yBase-b.amp,0,yBase+thick+b.amp);
+    gr.addColorStop(0,  `rgba(${b.r},0)`);
+    gr.addColorStop(.15,`rgba(${b.r},.18)`);
+    gr.addColorStop(.4, `rgba(${b.g},.15)`);
+    gr.addColorStop(.75,`rgba(${b.r},.06)`);
+    gr.addColorStop(1,  `rgba(${b.g},0)`);
+    oc2.save();
+    oc2.globalCompositeOperation='screen';
+    oc2.fillStyle=gr;
+    oc2.beginPath();
+    oc2.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++){
+      const p=pts[i-1],q=pts[i];
+      oc2.quadraticCurveTo(p.x,p.y,(p.x+q.x)/2,(p.y+q.y)/2);
+    }
+    oc2.lineTo(W,yBase+thick);
+    oc2.lineTo(0,yBase+thick);
+    oc2.closePath();
+    oc2.fill();
+    oc2.restore();
+  });
+  return oc;
+}
+
+/* ── 꽃잎 ── */
+class Petal {
+  constructor(init){
+    this.x = Math.random()*W;
+    this.y = init ? Math.random()*H : -30;
+    this.size  = Math.random()*12+7;
+    this.rot   = Math.random()*Math.PI*2;
+    this.rotV  = (Math.random()-.5)*.025;
+    this.vx    = (Math.random()-.5)*.7;
+    this.vy    = Math.random()*.8+.35;
+    this.sway  = Math.random()*.5+.15;
+    this.swayPh= Math.random()*Math.PI*2;
+    this.curl  = Math.random()*.5+.25;
+    const pal=[[180,20,40],[210,40,70],[240,70,95],[255,110,135],[200,10,50]];
+    const c=pal[Math.floor(Math.random()*pal.length)];
+    this.color=[c[0],c[1],c[2]];
+    this.alpha = Math.random()*.5+.3;
+  }
   draw(){
+    const s=this.size, [r,g,b]=this.color;
     ctx.save();
-    ctx.translate(this.x, this.y);
+    ctx.translate(this.x,this.y);
     ctx.rotate(this.rot);
     ctx.globalAlpha=this.alpha;
-
-    // 실제 장미 꽃잎: 타원 + 베지어 곡선으로 하트형 꽃잎
-    const s=this.size;
-    const curl=this.curl;
-
-    // 꽃잎 그라디언트
-    const grad=ctx.createRadialGradient(0,-s*.2,0,0,0,s);
-    grad.addColorStop(0,  `rgba(${this.r+40},${this.g+40},${this.b+40},1)`);
-    grad.addColorStop(0.4,`rgba(${this.r},${this.g},${this.b},1)`);
-    grad.addColorStop(1,  `rgba(${Math.max(0,this.r-50)},${Math.max(0,this.g-10)},${Math.max(0,this.b-10)},0.6)`);
-
-    ctx.fillStyle=grad;
-    ctx.shadowColor=`rgba(${this.r},${this.g},${this.b},0.5)`;
-    ctx.shadowBlur=8;
-
-    // 꽃잎 경로 (달걀+뾰족한 끝)
+    const gr=ctx.createRadialGradient(0,-s*.2,0,0,0,s);
+    gr.addColorStop(0,  `rgb(${r+40},${g+30},${b+30})`);
+    gr.addColorStop(.5, `rgb(${r},${g},${b})`);
+    gr.addColorStop(1,  `rgba(${Math.max(0,r-50)},0,10,0.5)`);
+    ctx.fillStyle=gr;
     ctx.beginPath();
-    ctx.moveTo(0, -s);
-    ctx.bezierCurveTo(
-       s*curl*1.2, -s*.6,
-       s*1.0,       s*.2,
-       0,           s
-    );
-    ctx.bezierCurveTo(
-      -s*1.0,       s*.2,
-      -s*curl*1.2, -s*.6,
-       0,           -s
-    );
-
-    // 안쪽 주름선
+    ctx.moveTo(0,-s);
+    ctx.bezierCurveTo( s*this.curl*1.1,-s*.55, s*.9, s*.2, 0, s);
+    ctx.bezierCurveTo(-s*.9, s*.2,-s*this.curl*1.1,-s*.55, 0,-s);
     ctx.fill();
-
-    // 주름 (중앙 선)
+    // 주름
     ctx.beginPath();
-    ctx.moveTo(0,-s*.8);
-    ctx.quadraticCurveTo(s*.15, 0, 0, s*.8);
-    ctx.strokeStyle=`rgba(${Math.max(0,this.r-40)},${Math.max(0,this.g-10)},${Math.max(0,this.b-10)},0.35)`;
-    ctx.lineWidth=0.8;
+    ctx.moveTo(0,-s*.75);
+    ctx.quadraticCurveTo(s*.12,0,0,s*.75);
+    ctx.strokeStyle=`rgba(${Math.max(0,r-50)},0,10,.3)`;
+    ctx.lineWidth=.7;
     ctx.stroke();
-
     ctx.restore();
   }
-
   update(t){
     this.y  += this.vy;
-    this.x  += this.vx + Math.sin(t*.0012+this.swayPh)*this.sway;
-    this.rot += this.rotV + Math.sin(t*.0008+this.swayPh)*.005;
-    if(this.y > H+50) this.reset(false);
+    this.x  += this.vx + Math.sin(t*.001+this.swayPh)*this.sway;
+    this.rot += this.rotV;
+    if(this.y>H+40){ this.y=-30; this.x=Math.random()*W; }
   }
 }
 
-const petals=[];
-for(let i=0;i<40;i++) petals.push(new Petal(true));
+const PETAL_COUNT = 24;
+const petals = Array.from({length:PETAL_COUNT},(_,i)=>new Petal(true));
 
-/* ══════════════════════════════════════
-   5. 메인 루프
-══════════════════════════════════════ */
-let t=0;
+/* ── 메인 루프 ── */
+let frame=0;
 function loop(){
-  ctx.clearRect(0,0,W,H);
-
   // 배경
   ctx.fillStyle='#010a06';
   ctx.fillRect(0,0,W,H);
 
-  drawStars(t);
-  drawAurora(t);
-  drawAuroraRings(t);
+  // 별 (캐시)
+  ctx.drawImage(starCache,0,0);
+
+  // 오로라 배경 (N프레임마다 갱신)
+  if(frame % AURORA_UPDATE_INTERVAL === 0){
+    auroraCache = buildAuroraFrame(frame);
+  }
+  if(auroraCache) ctx.drawImage(auroraCache,0,0);
+
+  // 오로라 링 (캐시된 이미지를 rotate로 회전 — 재드로우 없음)
+  ringCache.forEach((ring,ri)=>{
+    ctx.save();
+    ctx.globalCompositeOperation='screen';
+    ctx.translate(cx,cy);
+    ctx.rotate(frame*.00018*(ri+1));
+    ctx.drawImage(ring.canvas, -ring.size/2, -ring.size/2);
+    ctx.restore();
+  });
 
   // 꽃잎
-  petals.forEach(p=>{ p.update(t); p.draw(); });
+  petals.forEach(p=>{ p.update(frame); p.draw(); });
 
-  t++;
+  frame++;
   requestAnimationFrame(loop);
 }
+
+window.addEventListener('resize',resize);
+resize();
 loop();
 
-/* ══════════════════════════════════════
-   스탑워치 로직
-══════════════════════════════════════ */
-let startTime=0,elapsed=0,interval=null,running=false,lapStart=0,laps=[];
+/* ── 스탑워치 ── */
+let startTime=0,elapsed=0,timer=null,running=false,lapStart=0,laps=[];
 const timeEl=document.getElementById('time');
 const msEl=document.getElementById('ms');
 const btnStart=document.getElementById('btn-start');
@@ -327,17 +261,9 @@ const lapsEl=document.getElementById('laps');
 
 function fmt(ms){
   const s=Math.floor(ms/1000);
-  return{
-    min:Math.floor(s/60).toString().padStart(2,'0'),
-    sec:(s%60).toString().padStart(2,'0'),
-    cent:Math.floor((ms%1000)/10).toString().padStart(2,'0')
-  };
+  return{min:Math.floor(s/60).toString().padStart(2,'0'),sec:(s%60).toString().padStart(2,'0'),cent:Math.floor((ms%1000)/10).toString().padStart(2,'0')};
 }
-function updateDisplay(ms){
-  const{min,sec,cent}=fmt(ms);
-  timeEl.textContent=`${min}:${sec}`;
-  msEl.textContent=cent;
-}
+function updateDisplay(ms){const{min,sec,cent}=fmt(ms);timeEl.textContent=`${min}:${sec}`;msEl.textContent=cent;}
 function renderLaps(){
   if(!laps.length){lapsEl.innerHTML='';return;}
   const times=laps.map(l=>l.time);
@@ -352,24 +278,17 @@ btnStart.addEventListener('click',()=>{
   if(!running){
     startTime=Date.now()-elapsed;
     if(!lapStart)lapStart=Date.now();
-    interval=setInterval(()=>{elapsed=Date.now()-startTime;updateDisplay(elapsed);},10);
-    running=true;
-    btnStart.textContent='중지';btnStart.classList.add('running');
+    timer=setInterval(()=>{elapsed=Date.now()-startTime;updateDisplay(elapsed);},10);
+    running=true;btnStart.textContent='중지';btnStart.classList.add('running');
     btnLap.disabled=false;btnReset.disabled=true;
   }else{
-    clearInterval(interval);running=false;
-    btnStart.textContent='계속';btnStart.classList.remove('running');
+    clearInterval(timer);running=false;btnStart.textContent='계속';btnStart.classList.remove('running');
     btnLap.disabled=true;btnReset.disabled=false;
   }
 });
-btnLap.addEventListener('click',()=>{
-  const now=Date.now();
-  laps.push({num:laps.length+1,time:now-lapStart});
-  lapStart=now;renderLaps();
-});
+btnLap.addEventListener('click',()=>{const now=Date.now();laps.push({num:laps.length+1,time:now-lapStart});lapStart=now;renderLaps();});
 btnReset.addEventListener('click',()=>{
-  elapsed=0;lapStart=0;laps=[];
-  updateDisplay(0);renderLaps();
+  elapsed=0;lapStart=0;laps=[];updateDisplay(0);renderLaps();
   btnStart.textContent='시작';btnStart.classList.remove('running');
   btnLap.disabled=true;btnReset.disabled=true;
 });
